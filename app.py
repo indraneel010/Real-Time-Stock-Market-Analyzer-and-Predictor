@@ -8,7 +8,7 @@ from utils.logger import setup_logger  # Utility for logging
 app = Flask(__name__)
 
 # Set up logger
-logger = setup_logger("stock_analyzer")
+logger = setup_logger("stock_analyzer", log_file="logs/app.log")
 
 # Load pre-trained ML model
 MODEL_PATH = "models/stock_model.pkl"
@@ -18,7 +18,7 @@ try:
     logger.info("ML model loaded successfully.")
 except FileNotFoundError:
     logger.error(f"Model file not found at {MODEL_PATH}.")
-    raise FileNotFoundError("Model file not found! Make sure 'stock_model.pkl' exists.")
+    raise FileNotFoundError("Model file not found! Ensure 'stock_model.pkl' exists.")
 
 # Health check endpoint
 @app.route("/", methods=["GET"])
@@ -59,8 +59,5 @@ def predict():
 
 # Run the Flask app
 if __name__ == "__main__":
+    logger.info("Starting Flask application...")
     app.run(debug=True)
-from utils.logger import setup_logger
-
-# Initialize logger
-logger = setup_logger("stock_analyzer")
