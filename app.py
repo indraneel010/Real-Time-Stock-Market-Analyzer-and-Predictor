@@ -60,3 +60,7 @@ def predict():
 # Run the Flask app
 if __name__ == "__main__":
     app.run(debug=True)
+from utils.logger import setup_logger
+
+# Initialize logger
+logger = setup_logger("stock_analyzer")
