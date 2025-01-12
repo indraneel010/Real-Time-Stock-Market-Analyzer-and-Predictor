@@ -1,63 +1,73 @@
 from flask import Flask, jsonify, request
-import pickle
+from utils.logger import setup_logger
+from utils.stock_fetcher import fetch_stock_data_mock
+from utils.data_processor import clean_stock_data, prepare_features
 import os
-from utils.stock_fetcher import fetch_stock_data  # Utility to fetch stock data
-from utils.logger import setup_logger  # Utility for logging
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Set up logger
-logger = setup_logger("stock_analyzer", log_file="logs/app.log")
+# Set up logger for the application
+logger = setup_logger("app", log_file="logs/app.log")
 
-# Load pre-trained ML model
-MODEL_PATH = "models/stock_model.pkl"
-try:
-    with open(MODEL_PATH, "rb") as model_file:
-        model = pickle.load(model_file)
-    logger.info("ML model loaded successfully.")
-except FileNotFoundError:
-    logger.error(f"Model file not found at {MODEL_PATH}.")
-    raise FileNotFoundError("Model file not found! Ensure 'stock_model.pkl' exists.")
-
-# Health check endpoint
-@app.route("/", methods=["GET"])
+# Root endpoint
+@app.route("/")
 def home():
+    """
+    Health check endpoint to verify the server is running.
+    """
     logger.info("Health check endpoint accessed.")
-    return jsonify({"message": "Stock Analyzer API is running!"})
+    return jsonify({"status": "Server is running!"}), 200
 
 # Endpoint to fetch stock data
-@app.route("/api/stock-data", methods=["GET"])
-def stock_data():
-    symbol = request.args.get("symbol")
-    if not symbol:
-        logger.warning("Stock symbol not provided.")
-        return jsonify({"error": "Stock symbol is required"}), 400
+@app.route("/api/stock", methods=["GET"])
+def get_stock_data():
+    """
+    Fetch stock data using the stock fetcher utility.
+    """
     try:
-        data = fetch_stock_data(symbol)
-        logger.info(f"Stock data fetched for symbol: {symbol}")
-        return jsonify({"symbol": symbol, "data": data})
+        # For now, we use the mock stock data function
+        stock_data = fetch_stock_data_mock()
+        logger.info(f"Fetched stock data: {stock_data}")
+        return jsonify({"stock_data": stock_data}), 200
+
     except Exception as e:
         logger.error(f"Error fetching stock data: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Endpoint to predict stock trends
+# Prediction endpoint
 @app.route("/api/predict", methods=["POST"])
-def predict():
-    request_data = request.get_json()
-    if not request_data or "features" not in request_data:
-        logger.warning("Prediction features not provided.")
-        return jsonify({"error": "Features for prediction are required"}), 400
-    features = request_data["features"]
+def predict_stock_trend():
+    """
+    Predict stock trend based on provided data.
+    """
     try:
-        prediction = model.predict([features])
-        logger.info("Prediction made successfully.")
-        return jsonify({"prediction": prediction.tolist()})
+        # Extract raw data from the request
+        raw_data = request.get_json()
+        logger.info(f"Received data for prediction: {raw_data}")
+
+        # Clean and preprocess data
+        cleaned_data = clean_stock_data(raw_data)
+        features = prepare_features(cleaned_data)
+        logger.info(f"Cleaned and prepared data: {features.head()}")
+
+        # Make prediction (mock example)
+        # Replace with actual model prediction later
+        predictions = [1 if change > 0 else -1 for change in features["price_change"]]
+        logger.info(f"Generated predictions: {predictions}")
+
+        # Return predictions as JSON
+        return jsonify({"predictions": predictions}), 200
+
     except Exception as e:
-        logger.error(f"Error making prediction: {str(e)}")
+        logger.error(f"Error in prediction endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Run the Flask app
+# Run the app
 if __name__ == "__main__":
-    logger.info("Starting Flask application...")
-    app.run(debug=True)
+    # Ensure logs directory exists
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
+
+    logger.info("Starting Flask app.")
+    app.run(debug=True, host="0.0.0.0", port=5000)
